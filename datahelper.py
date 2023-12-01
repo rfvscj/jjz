@@ -42,6 +42,8 @@ class JJZDataset(Dataset):
         input_text = get_summary(item['fact2'])
         # 作为label
         reduction = item['reduction']
+        hypo = item['hypo']
+        score = item['score']
         
         inputs = self.tokenizer.encode_plus(
             input_text,
@@ -62,6 +64,8 @@ class JJZDataset(Dataset):
             'attention_mask': inputs['attention_mask'].to(self.device).squeeze(0),
             'type': torch.tensor([case_type], dtype=torch.long, device=self.device),
             'reduction': torch.tensor([reduction], dtype=torch.long, device=self.device),
+            'hypo': torch.tensor([hypo], dtype=torch.long, device=self.device),
+            'score': torch.tensor([score], dtype=torch.float, device=self.device)
         }
         
     

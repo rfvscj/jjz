@@ -5,10 +5,11 @@ from transformers import AutoTokenizer, AutoModel
 
 
 class JJZModel(nn.Module):
-    def __init__(self, model_path, charge_num, class_num) -> None:
+    def __init__(self, model_path, charge_num, class_num, disc=False) -> None:
         super(JJZModel, self).__init__()
         self.encoder = AutoModel.from_pretrained(model_path)
         self.dim = self.encoder.config.hidden_size
+        self.disc = disc
         # 追加嵌入
         self.age2vec = nn.Embedding(100, self.dim)
         self.gender2vec = nn.Embedding(2, self.dim)
@@ -16,6 +17,8 @@ class JJZModel(nn.Module):
         self.nation2vec = nn.Embedding(5, self.dim)
         self.praise2vec = nn.Embedding(20, self.dim)
         self.charge2vec = nn.Embedding(charge_num + 1, self.dim)
+        # 假设
+        self.hypo2vec = nn.Embedding(39, self.dim)
         # 融合各个嵌入
         self.fuse_layer = nn.Sequential(
             nn.Linear(self.dim, self.dim),
@@ -28,12 +31,21 @@ class JJZModel(nn.Module):
             nn.ReLU(),
             nn.Linear(self.dim // 4, class_num)
         )
-        self.criterion = nn.CrossEntropyLoss()
+        # 回归
+        self.disc_layer = nn.Sequential(
+            nn.Linear(self.dim, self.dim // 4),
+            nn.ReLU(),
+            nn.Linear(self.dim // 4, 1)
+        )
+        self.ce = nn.CrossEntropyLoss()
+        self.mse = nn.MSELoss()
         self.relu = nn.ReLU()
         
         
     def forward(self, inputs, mode="train"):
         age, gender, health, nation, praise, charge = inputs['age'], inputs['gender'], inputs['health'], inputs['nation'], inputs['praise'], inputs['charge']
+        
+        
         
         age_vec = self.age2vec(age).squeeze(dim=1)
         gender_vec = self.gender2vec(gender).squeeze(dim=1)
@@ -42,6 +54,8 @@ class JJZModel(nn.Module):
         praise_vec = self.praise2vec(praise).squeeze(dim=1)
         charge_vec = self.charge2vec(charge)
         charge_vec = torch.sum(charge_vec, dim=1)
+        
+        
         
         assert age_vec.shape == gender_vec.shape
         assert age_vec.shape == health_vec.shape
@@ -57,16 +71,29 @@ class JJZModel(nn.Module):
         attention_mask = inputs['attention_mask']
         # 就不用input_embeds了
         pooler_output = self.encoder(input_ids, attention_mask=attention_mask)[1]
+        
         fused_vec = self.relu(pooler_output + appendix_vec)
         output_logits = self.predict_layer(fused_vec)
         
+        if self.disc:
+            hypo = inputs['hypo']
+            score = inputs['score']
+            hypo_vec = self.hypo2vec(hypo).squeeze(dim=1)
+            hypo_fuse = self.relu(pooler_output + appendix_vec + hypo_vec)
+            hypo_logits = self.disc_layer(hypo_fuse)
+            hypo_logits = torch.sigmoid(hypo_logits)
+        
         if mode == "train":
             reduction = inputs['reduction'].squeeze(dim=1)
-            loss = self.criterion(output_logits, reduction)
+            loss = self.ce(output_logits, reduction)
+            if self.disc:
+                loss_disc = self.mse(hypo_logits, score)
+                return loss + loss_disc
             return loss
         
         return {
-            'logits': output_logits
+            'logits': output_logits,
+            'score': hypo_logits if self.disc else None
         }
         
         

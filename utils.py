@@ -34,9 +34,17 @@ def num_clamp(x, low, high):
 
 
 def batch_acc(logits: torch.Tensor, label: torch.Tensor):
-    # batch, 39   batch, 1
+    # batch, 39   batch
     preds = torch.argmax(logits, dim=1)
+    # 计算得分，暂未精确考虑特殊情况
+    score_0 = 1 - torch.mean(torch.abs(torch.log(1 + preds) - torch.log(1 + label))).item()
+    
     acc_num = torch.sum(preds == label).item()
     exact_acc = acc_num / logits.shape[0]
-    return exact_acc
+    
+    return exact_acc, score_0
+
+def batch_div(predictions: torch.Tensor, targets: torch.Tensor):
+    return torch.sqrt(torch.mean((predictions - targets)**2))
+    
     
