@@ -1,0 +1,5 @@
+ckpt.bin
+data/
+macbert/
+assets/
+__pycache__/
