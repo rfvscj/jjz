@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel
+from utils import measure_distance
 
 
 class JJZModel(nn.Module):
@@ -37,6 +38,7 @@ class JJZModel(nn.Module):
             nn.ReLU(),
             nn.Linear(self.dim // 4, 1)
         )
+        self.transform_layer = nn.Linear(self.dim, self.dim)
         self.ce = nn.CrossEntropyLoss()
         self.mse = nn.MSELoss()
         self.relu = nn.ReLU()
@@ -87,7 +89,19 @@ class JJZModel(nn.Module):
             reduction = inputs['reduction'].squeeze(dim=1)
             loss = self.ce(output_logits, reduction)
             if self.disc:
-                loss_disc = self.mse(hypo_logits, score)
+                # batch, 39
+                dists = self.get_dists(reduction)
+                # 生成39个hypos，此处也未必要39个全整一遍
+                hypos = []
+                for b in range(dists.shape[0]):
+                    _hypo = torch.tensor([h for h in range(39)], dtype=torch.long, device=self.encoder.device)
+                    hypos.append(_hypo.unsqueeze(dim=0))
+                hypos = torch.cat(hypos, dim=0)
+                hypos_vec = self.hypo2vec(hypos)  # batch, 39, dim
+                trans_vec = self.transform_layer(fused_vec)
+                hypos_vec = self.relu(hypos_vec + trans_vec.unsqueeze(dim=1))
+                hypos_logits = self.disc_layer(hypos_vec).squeeze(dim=-1)
+                loss_disc = self.mse(hypos_logits, dists)
                 return loss + loss_disc
             return loss
         
@@ -95,6 +109,19 @@ class JJZModel(nn.Module):
             'logits': output_logits,
             'score': hypo_logits if self.disc else None
         }
+    
+    def get_dists(self, reduction):
+        # 给定监督标签，按照度量函数，计算所有标签的得分
+        # input: batch, 1
+        # output: batch, 39
+        dists = []
+        for redu in reduction:
+            # 39
+            distance = torch.tensor([measure_distance(h, redu.item()) for h in range(39)], dtype=torch.float, device=self.encoder.device)
+            dists.append(distance.unsqueeze(0))
+        dists = torch.cat(dists, dim=0)
+        return dists
+        
         
         
         

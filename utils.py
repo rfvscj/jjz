@@ -1,3 +1,4 @@
+import math
 import re
 from textrank4zh import TextRank4Keyword, TextRank4Sentence
 import json
@@ -47,4 +48,18 @@ def batch_acc(logits: torch.Tensor, label: torch.Tensor):
 def batch_div(predictions: torch.Tensor, targets: torch.Tensor):
     return torch.sqrt(torch.mean((predictions - targets)**2))
     
+
+def measure_distance(hypo: int, truth: int):
+    # 度量差距
+    # y = |log(1 + x_t) - log(1 + x_p)|
+    # 0 ~ 4-
+    if hypo == truth:
+        return 0
+    
+    if hypo in [0, 37, 38] or truth in [0, 37, 38]:
+        # 最大差距
+        return 4
+    
+    distance = math.fabs(math.log(hypo + 1) - math.log(truth + 1))
+    return distance
     
