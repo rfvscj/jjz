@@ -6,11 +6,11 @@ from utils import measure_distance
 
 
 class JJZModel(nn.Module):
-    def __init__(self, model_path, charge_num, class_num, disc=False) -> None:
+    def __init__(self, model_path, charge_num, class_num) -> None:
         super(JJZModel, self).__init__()
         self.encoder = AutoModel.from_pretrained(model_path)
         self.dim = self.encoder.config.hidden_size
-        self.disc = disc
+        self.lamb = 1
         # 追加嵌入
         self.age2vec = nn.Embedding(100, self.dim)
         self.gender2vec = nn.Embedding(2, self.dim)
@@ -77,37 +77,40 @@ class JJZModel(nn.Module):
         fused_vec = self.relu(pooler_output + appendix_vec)
         output_logits = self.predict_layer(fused_vec)
         
-        if self.disc:
-            hypo = inputs['hypo']
-            score = inputs['score']
-            hypo_vec = self.hypo2vec(hypo).squeeze(dim=1)
-            hypo_fuse = self.relu(pooler_output + appendix_vec + hypo_vec)
-            hypo_logits = self.disc_layer(hypo_fuse)
-            hypo_logits = torch.sigmoid(hypo_logits)
+        
+        
+        # 生成39个hypos，此处也未必要39个全整一遍
+        hypos = []
+        for b in range(pooler_output.shape[0]):
+            _hypo = torch.tensor([h for h in range(39)], dtype=torch.long, device=self.encoder.device)
+            hypos.append(_hypo.unsqueeze(dim=0))
+        hypos = torch.cat(hypos, dim=0)
+        
+        hypos_vec = self.hypo2vec(hypos)  # batch, 39, dim
+        trans_vec = self.transform_layer(fused_vec)
+        # 利用广播
+        hypos_vec = self.relu(hypos_vec + trans_vec.unsqueeze(dim=1))
+        # 预测的就是到每个标签的距离，可能加个激活函数更合适
+        hypos_logits = self.disc_layer(hypos_vec).squeeze(dim=-1)
+        hypos_logits = 4.0 * torch.sigmoid(hypos_logits)
+        
+        
         
         if mode == "train":
             reduction = inputs['reduction'].squeeze(dim=1)
+            # batch, 39
+            dists = self.get_dists(reduction)
+            loss_disc = self.mse(hypos_logits, dists)
+            
             loss = self.ce(output_logits, reduction)
-            if self.disc:
-                # batch, 39
-                dists = self.get_dists(reduction)
-                # 生成39个hypos，此处也未必要39个全整一遍
-                hypos = []
-                for b in range(dists.shape[0]):
-                    _hypo = torch.tensor([h for h in range(39)], dtype=torch.long, device=self.encoder.device)
-                    hypos.append(_hypo.unsqueeze(dim=0))
-                hypos = torch.cat(hypos, dim=0)
-                hypos_vec = self.hypo2vec(hypos)  # batch, 39, dim
-                trans_vec = self.transform_layer(fused_vec)
-                hypos_vec = self.relu(hypos_vec + trans_vec.unsqueeze(dim=1))
-                hypos_logits = self.disc_layer(hypos_vec).squeeze(dim=-1)
-                loss_disc = self.mse(hypos_logits, dists)
-                return loss + loss_disc
-            return loss
+            return {
+                'loss': loss + self.lamb * loss_disc,
+                'loss_disc': loss_disc
+                }
         
         return {
             'logits': output_logits,
-            'score': hypo_logits if self.disc else None
+            'hypos_logits': hypos_logits
         }
     
     def get_dists(self, reduction):
@@ -121,7 +124,4 @@ class JJZModel(nn.Module):
             dists.append(distance.unsqueeze(0))
         dists = torch.cat(dists, dim=0)
         return dists
-        
-        
-        
         

@@ -37,16 +37,35 @@ def num_clamp(x, low, high):
 def batch_acc(logits: torch.Tensor, label: torch.Tensor):
     # batch, 39   batch
     preds = torch.argmax(logits, dim=1)
-    # 计算得分，暂未精确考虑特殊情况
-    score_0 = 1 - torch.mean(torch.abs(torch.log(1 + preds) - torch.log(1 + label))).item()
-    
     acc_num = torch.sum(preds == label).item()
     exact_acc = acc_num / logits.shape[0]
     
-    return exact_acc, score_0
+    # 计算得分
+    err_sum = 0
+    for b in range(logits.shape[0]):
+        if preds[b].item() == label[b].item():
+            continue 
+        if label[b].item() in [0, 37, 38] or preds[b].item() in [0, 37, 38]:
+            err_sum += 4
+        else:
+            err_sum += torch.abs(torch.log(1 + preds[b]) - torch.log(1 + label[b])).item()
+    err_0 = err_sum / logits.shape[0]
+    
+    return exact_acc, err_0
 
 def batch_div(predictions: torch.Tensor, targets: torch.Tensor):
     return torch.sqrt(torch.mean((predictions - targets)**2))
+
+def batch_distance(hypos_logits: torch.Tensor, label: torch.Tensor):
+    # batch, 39  batch
+    # 即，对于正确的，本应为0，所以减去0，即本身就是偏差
+    dist_sum = 0
+    for b in range(hypos_logits.shape[0]):
+        dist_sum += hypos_logits[b][label[b]]
+    distance = dist_sum / hypos_logits.shape[0]
+    return distance.item()
+        
+        
     
 
 def measure_distance(hypo: int, truth: int):
@@ -55,11 +74,9 @@ def measure_distance(hypo: int, truth: int):
     # 0 ~ 4-
     if hypo == truth:
         return 0
-    
     if hypo in [0, 37, 38] or truth in [0, 37, 38]:
         # 最大差距
         return 4
-    
     distance = math.fabs(math.log(hypo + 1) - math.log(truth + 1))
     return distance
     
