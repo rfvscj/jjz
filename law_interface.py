@@ -1,9 +1,6 @@
 # 实现输入为整个文书，然后处理后接入model_shell，接受model_shell的输出，处理后给出输出
-
-import json
 import time
 import pickle
-import cn2an
 import torch
 from model import ModelShell
 from extract_info import extract_info
@@ -48,45 +45,6 @@ def analyze(shell:ModelShell, judgement):
     output["conclusion"] = conclusion
     
     return output
-
-# # 该类作为一个interface，仅提供输入输出给shell，进行模型无关的操作
-# # 这里写个类主要是为了quicklook和analyze共用获取info的操作以加速运行，以及方便后续的可能扩展
-# class LawInterface():
-#     def __init__(self, shell: ModelShell, applyment: str=None, judgement: str=None) -> None:
-#         # 目前实现中仅采用判决书，留有applyment，后续扩展
-#         self.info = extract_info(applyment=applyment, judgement=judgement)
-#         self.shell = shell
-#         pass
-    
-#     # 较快地将文书分割
-#     def quicklook(self, ):
-#         if self.info['fact_jdg'] == "":
-#             return self.info['jdg'], ""
-#         return self.info['fact_jdg'], self.info['jdg']
-    
-#     # 输入应该是整个文书
-#     def analyze(self, ):
-        
-#         shell_output = self.shell.get_output(self.info)
-#         output = shell_output.copy()
-#         conclusion = ""
-        
-#         conclusion += f"罪犯民族：{'汉族' if output['nation'] == 0 else '少数民族' if output['nation'] == 1 else '其他'}, \n"
-#         conclusion += f"罪犯性别：{'男' if output['gender'] == 1 else '女'}, \n"
-#         conclusion += f"罪犯年龄：{'未知' if output['age'] == 0 else output['age']}, \n"
-#         conclusion += f"罪犯罪名：{'未知' if len(output['charge']) == 0 else','.join(output['charge'])}, \n"
-#         conclusion += f"罪犯身体状况：{'健康' if output['health'] == 0 else '患病'}, \n"
-#         conclusion += f"罪犯在狱表现：受表扬{output['praise']}次, \n\n" if output['praise'] > 0 else '\n' 
-        
-#         conclusion += f"建议减刑/假释：{output['suggestion']}个月\n"
-#         conclusion += f"判决偏差：{output['distance']}"
-#         conclusion += f"不确定度：{output['inconsistency']}\n"
-            
-#         output["conclusion"] = conclusion    
-        
-#         return output
-              
-
 
 
 if __name__ == "__main__":

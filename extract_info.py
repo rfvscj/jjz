@@ -1,10 +1,7 @@
 import datetime
 import json
 import re
-
 import cn2an
-
-from utils import get_summary
 
 def get_gender(text):  # 0女1男-1未知
     try:
