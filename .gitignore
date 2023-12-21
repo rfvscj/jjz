@@ -1,5 +1,6 @@
-ckpt.bin
 data/
-macbert/
+plms/
 assets/
 __pycache__/
+train.log
+savings/

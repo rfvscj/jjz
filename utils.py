@@ -31,7 +31,7 @@ def get_summary(text, k=10, max_len=512):
 def num_clamp(x, low, high):
     x = min(x, high)
     x = max(x, low)
-    return x
+    return int(x)
 
 
 def batch_acc(logits: torch.Tensor, label: torch.Tensor):
@@ -45,7 +45,7 @@ def batch_acc(logits: torch.Tensor, label: torch.Tensor):
     for b in range(logits.shape[0]):
         if preds[b].item() == label[b].item():
             continue 
-        if label[b].item() in [0, 37, 38] or preds[b].item() in [0, 37, 38]:
+        if label[b].item() in [37, 38] or preds[b].item() in [37, 38]:
             err_sum += 4
         else:
             err_sum += torch.abs(torch.log(1 + preds[b]) - torch.log(1 + label[b])).item()
@@ -74,7 +74,7 @@ def measure_distance(hypo: int, truth: int):
     # 0 ~ 4-
     if hypo == truth:
         return 0
-    if hypo in [0, 37, 38] or truth in [0, 37, 38]:
+    if hypo in [37, 38] or truth in [37, 38]:
         # 最大差距
         return 4
     distance = math.fabs(math.log(hypo + 1) - math.log(truth + 1))
