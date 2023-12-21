@@ -1,10 +1,12 @@
+import sys
+sys.path.append('..')
 import torch
 from transformers import AutoModel, AutoTokenizer
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import json
 import pickle
-from utils import get_summary, num_clamp
+from src.utils import get_summary, num_clamp
     
     
 
@@ -81,7 +83,7 @@ def collate_fn(batch):
         
 if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("/public_storage/plms/macbert")
-    jjzdata = JJZDataset("data/train_2.json", tokenizer=tokenizer)
+    jjzdata = JJZDataset("../data/train_2.json", tokenizer=tokenizer)
     
     for item in jjzdata:
         print(item)

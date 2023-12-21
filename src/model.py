@@ -1,9 +1,11 @@
+import sys
+sys.path.append('..')
 import pickle
 import torch
 from torch import nn
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel, AutoConfig
-from utils import measure_distance, num_clamp, get_summary
+from src.utils import measure_distance, num_clamp, get_summary
 
 class JJZModel(nn.Module):
     def __init__(self, model_path, charge_num, class_num, init=False) -> None:
@@ -160,7 +162,7 @@ class ModelShell:
         charge = inputs["charge"]
         redu = inputs["redu"] if "redu" in inputs else None
         
-        with open("assets/charge2id.pkl", 'rb') as c2id:
+        with open("../assets/charge2id.pkl", 'rb') as c2id:
             charge2id = pickle.load(c2id, encoding="utf8")
         charge_id = []
         for it in charge:
@@ -180,25 +182,16 @@ class ModelShell:
             "redu": torch.tensor([[redu]], dtype=torch.long, device=self.args.device) if redu is not None else None
         }
         
-        
         output_dict = self.model(model_inputs, mode="test")
-        
-        
-        
-        
-        
         # 至此，模型预测出一个适应的减刑时长，以及判决中减刑是否合适
         # 然后，我们需要计算一致性，即减刑时长和模型的评估是否一致
-        
         # 这是模型只看文书的事实描述部分，预测的减刑时长。（文书中的结果不可见）
-        
-        
         suggestion = torch.argmax(output_dict['logits'], dim=1).item()
         # 这是模型看到文书的裁判结果后，对该结果是否合适的评估
         estimation = output_dict['hypos_logits'][0, redu].item() if redu is not None else -1
         # 这是模型预测结果和文书中裁判结果的距离
         distance = measure_distance(suggestion, redu)
-        # TODO 这是模型的预测和评估的不一致性（这里忽略了方向，其实并不严谨，可以重新搞一搞
+        # TODO 这是模型的预测和评估的不一致性（这里直接取绝对值忽略了方向，其实并不严谨，可以重新搞一搞
         # TODO 这里还可以把所有可能的都算一遍然后取平均，理论上对方向问题可以平滑
         # TODO 把前边的绝对值去掉，就可以解决方向问题，其实也都可以不弄
         inconsistency = abs(estimation - distance)

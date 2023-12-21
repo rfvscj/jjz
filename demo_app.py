@@ -5,8 +5,8 @@ import json
 import torch
 import gradio as gr
 from pathlib import Path
-from law_interface import MyArgs, quicklook, analyze
-from model import ModelShell
+from src.law_interface import MyArgs, quicklook, analyze
+from src.model import ModelShell
 
 
 args = MyArgs()

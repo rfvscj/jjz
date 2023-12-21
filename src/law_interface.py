@@ -1,9 +1,11 @@
 # 实现输入为整个文书，然后处理后接入model_shell，接受model_shell的输出，处理后给出输出
+import sys
+sys.path.append('..')
 import time
 import pickle
 import torch
-from model import ModelShell
-from extract_info import extract_info
+from src.model import ModelShell
+from src.extract_info import extract_info
 
 
 # 自定义参数类

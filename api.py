@@ -1,8 +1,8 @@
 import json
 import time
 from flask import Flask, request, jsonify
-from law_interface import MyArgs, quicklook, analyze
-from model import ModelShell
+from src.law_interface import MyArgs, quicklook, analyze
+from src.model import ModelShell
 
 args = MyArgs()
 shell = ModelShell(args)

@@ -12,16 +12,14 @@ args = parser.parse_args()
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
-
 import torch
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 from torch.optim import AdamW
-from datahelper import JJZDataset
-from model import JJZModel
+from src.datahelper import JJZDataset
+from src.model import JJZModel
+from src.utils import batch_acc, batch_distance
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils import batch_acc, batch_distance
-
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -50,10 +48,6 @@ def eval(model, valid_loader):
         # err0是预测和真实的偏差，由预测结果和真实值得出，err1是预测的作为真实值会有多少偏差（期望是0）
         tq.set_postfix_str(f"acc: {round(acc_avg, 4)} err0: {round(err0_avg, 4)} err1: {round(err1_avg, 4)}")
     return acc_avg, err0_avg, err1_avg
-        
-        
-        
-
 
 def train(args, model, train_loader, valid_loader=None):
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
@@ -104,7 +98,6 @@ if __name__ == "__main__":
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size)
     
     model = JJZModel(model_path=args.model_path, charge_num=train_dataset.charge_num, class_num=39)
-    
     model.to(DEVICE)
     
     train(args, model, train_loader, valid_loader)
