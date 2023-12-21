@@ -1,4 +1,3 @@
-import json
 import time
 from flask import Flask, request, jsonify
 from src.law_interface import MyArgs, quicklook, analyze
