@@ -7,12 +7,9 @@ from pathlib import Path
 from src.law_interface import MyArgs, quicklook, analyze
 from src.model import ModelShell
 
-
 args = MyArgs()
 args.device = torch.device("cpu")
 shell = ModelShell(args)
-
-
 
 sample_list = []
 if hasattr(args, "sample_option_file") and os.path.exists(args.sample_option_file):
@@ -44,7 +41,6 @@ def type_select(evt: gr.SelectData):
         return 0
     else:
         return 1
-
 
 # css_code = 'div{background-image: url("http://jxjs.court.gov.cn/resourcesE/gaofa/201410/281456500jx3.png");}\
 #     #sss{background-color:#b0c4de;}'

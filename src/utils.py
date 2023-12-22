@@ -1,8 +1,8 @@
+import sys
+sys.path.append('..')
 import math
 import re
-from textrank4zh import TextRank4Keyword, TextRank4Sentence
-import json
-from tqdm import tqdm
+from src.textrank4zh import TextRank4Sentence
 import torch
 
 # 中文分句
@@ -16,30 +16,24 @@ def cut_sent(para):
     # 很多规则中会考虑分号;，但是这里我把它忽略不计，破折号、英文双引号等同样忽略，需要的再做些简单调整即可。
     return para.split("\n")
 
-
-
 def get_summary(text, k=10, max_len=512):
     tr4s = TextRank4Sentence()
     tr4s.analyze(text, lower=True, source='all_filters')
-    
     summary = [item for item in tr4s.get_key_sentences(num=k)]
     summary = sorted(summary, key=lambda x: x.index)
     summary = ' '.join([item.sentence for item in summary])[:max_len]
     return summary
-
 
 def num_clamp(x, low, high):
     x = min(x, high)
     x = max(x, low)
     return int(x)
 
-
 def batch_acc(logits: torch.Tensor, label: torch.Tensor):
     # batch, 39   batch
     preds = torch.argmax(logits, dim=1)
     acc_num = torch.sum(preds == label).item()
     exact_acc = acc_num / logits.shape[0]
-    
     # 计算得分
     err_sum = 0
     for b in range(logits.shape[0]):
@@ -65,9 +59,6 @@ def batch_distance(hypos_logits: torch.Tensor, label: torch.Tensor):
     distance = dist_sum / hypos_logits.shape[0]
     return distance.item()
         
-        
-    
-
 def measure_distance(hypo: int, truth: int):
     # 度量差距
     # y = |log(1 + x_t) - log(1 + x_p)|
